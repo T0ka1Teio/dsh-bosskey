@@ -156,7 +156,7 @@ DSH-BossKey.exe --target Notepad --toggle   :: 临时指定别的进程
 需要 [.NET 10 SDK](https://dotnet.microsoft.com/download)：
 
 ```powershell
-git clone https://github.com/<your-name>/dsh-bosskey.git
+git clone https://github.com/T0ka1Teio/dsh-bosskey.git
 cd dsh-bosskey
 .\build.ps1
 ```
