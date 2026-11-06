@@ -35,12 +35,45 @@
 2. 放到任意文件夹就能用（**免安装**，不写系统目录）
 3. 双击 `DSH-BossKey.exe`
 4. 看屏幕右下角的**系统托盘**——出现一个蓝色圆形图标，就说明它已经在正常运行了
-   （Windows 11 默认把托盘图标折叠起来，点一下任务栏上的 `^` 就能看到）
 5. 按 `Ctrl + Alt + Q` 试试
 
-> **运行环境**：需要 [**.NET 10 桌面运行时**](https://dotnet.microsoft.com/download/dotnet/10.0)（Windows 一般没自带）。
+> **运行环境**：需要 [**.NET 10 桌面运行时**](https://dotnet.microsoft.com/download/dotnet/10.0) 
 > 如果双击后提示缺少 .NET 或一闪而过，就是这个原因；装上桌面运行时（Desktop Runtime）再双击即可。
 > 不想装运行时的话，可以自己构建自包含版，见下方「从源码构建」。
+
+## 从源码构建
+
+需要 [.NET 10 SDK](https://dotnet.microsoft.com/download)：
+
+```powershell
+git clone https://github.com/T0ka1Teio/dsh-bosskey.git
+cd dsh-bosskey
+.\build.ps1
+```
+
+或者手动指定：
+
+```powershell
+# 精简版：约 220 KB，需要目标机器装 .NET 10 桌面运行时（Release 里发的就是这个）
+dotnet publish -c Release -r win-x64 -p:SelfContained=false -p:PublishSingleFile=true -o dist
+
+# 自包含版：约 47 MB，内置运行时，对方什么都不用装（适合发给别人）
+dotnet publish -c Release -r win-x64 -p:SelfContained=true -p:PublishSingleFile=true `
+  -p:EnableCompressionInSingleFile=true -p:DebugType=none -o dist\selfcontained
+```
+
+`build.ps1` 默认构建自包含版；要精简版就加 `-SelfContained:$false`。
+每次 push 后 GitHub Actions 会在 Actions 页生成构建产物。
+
+## 目录结构
+
+```
+BossKey.csproj      # net10.0-windows + WinForms
+Program.cs          # 全部逻辑：窗口枚举、隐藏/显示、任务栏、托盘、热键、配置
+icon.ico            # 16/24/32/48/64/128/256 多尺寸图标
+make-icon.ps1       # 图标生成脚本
+build.ps1           # 一键构建
+```
 
 > **第一次运行时 Windows 可能拦一下**
 > 会提示「Windows 已保护你的电脑」。这是因为程序没有购买数字签名证书，属于未签名软件的常规提示，不是报错。
@@ -52,8 +85,6 @@
 | :--- | :--- |
 | `Ctrl` + `Alt` + `Q` | **老板键**：隐藏 / 显示窗口 |
 | `Ctrl` + `Alt` + `W` | 只摘掉任务栏图标（窗口保持可见），再按装回 |
-
-热键是**全局**的：不管当前在用什么软件、焦点在哪个窗口，按下去都生效。
 
 ## 系统托盘
 
@@ -150,40 +181,6 @@ DSH-BossKey.exe --target Notepad --toggle   :: 临时指定别的进程
 - 隐藏的是窗口本身。如果目标程序自己还有一个**系统托盘小图标**，那个图标不受影响。
 - 它不是 DRM：挡不住 HDMI 采集卡，也挡不住拿手机拍屏幕。
 - 只建议用在你自己的设备和你自己有权操作的程序上。
-
-## 从源码构建
-
-需要 [.NET 10 SDK](https://dotnet.microsoft.com/download)：
-
-```powershell
-git clone https://github.com/T0ka1Teio/dsh-bosskey.git
-cd dsh-bosskey
-.\build.ps1
-```
-
-或者手动指定：
-
-```powershell
-# 精简版：约 220 KB，需要目标机器装 .NET 10 桌面运行时（Release 里发的就是这个）
-dotnet publish -c Release -r win-x64 -p:SelfContained=false -p:PublishSingleFile=true -o dist
-
-# 自包含版：约 47 MB，内置运行时，对方什么都不用装（适合发给别人）
-dotnet publish -c Release -r win-x64 -p:SelfContained=true -p:PublishSingleFile=true `
-  -p:EnableCompressionInSingleFile=true -p:DebugType=none -o dist\selfcontained
-```
-
-`build.ps1` 默认构建自包含版；要精简版就加 `-SelfContained:$false`。
-每次 push 后 GitHub Actions 会在 Actions 页生成构建产物。
-
-## 目录结构
-
-```
-BossKey.csproj      # net10.0-windows + WinForms
-Program.cs          # 全部逻辑：窗口枚举、隐藏/显示、任务栏、托盘、热键、配置
-icon.ico            # 16/24/32/48/64/128/256 多尺寸图标
-make-icon.ps1       # 图标生成脚本
-build.ps1           # 一键构建
-```
 
 ## 许可
 
