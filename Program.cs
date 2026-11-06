@@ -118,6 +118,11 @@ internal static class Program
     static readonly List<IntPtr> targets = new();
     static bool isHidden;
     static bool isTabHidden;
+    static bool hotkeyHideOk;
+    static bool hotkeyTabOk;
+    static bool warnedHide;
+    static bool warnedTab;
+    static System.Windows.Forms.Timer hotkeyWatchdog;
 
     static string ConfigPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DshBossKey", "config.json");
@@ -149,8 +154,8 @@ internal static class Program
 
         var hide = ParseHotkey(cfg.HideHotkey);
         var tab = ParseHotkey(cfg.TabHotkey);
-        bool okHide = Native.RegisterHotKey(form.Handle, HOTKEY_HIDE, hide.mods, hide.vk);
-        bool okTab = Native.RegisterHotKey(form.Handle, HOTKEY_TAB, tab.mods, tab.vk);
+        hotkeyHideOk = Native.RegisterHotKey(form.Handle, HOTKEY_HIDE, hide.mods, hide.vk);
+        hotkeyTabOk = Native.RegisterHotKey(form.Handle, HOTKEY_TAB, tab.mods, tab.vk);
 
         tray = new NotifyIcon
         {
@@ -163,9 +168,8 @@ internal static class Program
         RebuildMenu();
         tray.DoubleClick += (_, _) => ToggleHide();
 
-        if (!okHide)
-            Notify($"热键 {cfg.HideHotkey} 注册失败（被别的程序占用），请改配置",
-                   ToolTipIcon.Warning, 6000);
+        WarnIfHotkeyMissing();
+        StartHotkeyWatchdog();
 
         Application.ApplicationExit += (_, _) => RestoreEverything();
         Application.Run(form);
@@ -258,6 +262,66 @@ internal static class Program
         else if (id == HOTKEY_TAB) ToggleTab();
     }
 
+    /// <summary>
+    /// RegisterHotKey 失败时系统不会给任何提示，热键就是静默失效。
+    /// 这里启动时提示一次，之后每 15 秒重试，占用方退出后能自动恢复。
+    /// </summary>
+    static void WarnIfHotkeyMissing()
+    {
+        var missing = new List<string>();
+        if (!hotkeyHideOk) missing.Add(cfg.HideHotkey);
+        if (!hotkeyTabOk) missing.Add(cfg.TabHotkey);
+        if (missing.Count == 0) return;
+
+        warnedHide = !hotkeyHideOk;
+        warnedTab = !hotkeyTabOk;
+        Notify($"{string.Join("、", missing)} 被其他程序占用，暂时不能用。\n" +
+               "程序每 15 秒自动重试；也可以右键托盘图标直接操作，或改配置换一组热键。",
+               ToolTipIcon.Warning, 10000);
+    }
+
+    static void StartHotkeyWatchdog()
+    {
+        hotkeyWatchdog = new System.Windows.Forms.Timer { Interval = 15000 };
+        hotkeyWatchdog.Tick += (_, _) => RetryHotkeys();
+        hotkeyWatchdog.Start();
+    }
+
+    static void RetryHotkeys()
+    {
+        if (hotkeyHideOk && hotkeyTabOk) return;
+
+        if (!hotkeyHideOk)
+        {
+            var k = ParseHotkey(cfg.HideHotkey);
+            Native.UnregisterHotKey(form.Handle, HOTKEY_HIDE);
+            if (Native.RegisterHotKey(form.Handle, HOTKEY_HIDE, k.mods, k.vk))
+            {
+                hotkeyHideOk = true;
+                if (warnedHide)
+                {
+                    warnedHide = false;
+                    Notify($"热键 {cfg.HideHotkey} 已恢复使用", ToolTipIcon.Info, 3000);
+                }
+            }
+        }
+
+        if (!hotkeyTabOk)
+        {
+            var k = ParseHotkey(cfg.TabHotkey);
+            Native.UnregisterHotKey(form.Handle, HOTKEY_TAB);
+            if (Native.RegisterHotKey(form.Handle, HOTKEY_TAB, k.mods, k.vk))
+            {
+                hotkeyTabOk = true;
+                if (warnedTab)
+                {
+                    warnedTab = false;
+                    Notify($"热键 {cfg.TabHotkey} 已恢复使用", ToolTipIcon.Info, 3000);
+                }
+            }
+        }
+    }
+
     static void ToggleHide()
     {
         bool ok = isHidden ? ShowWindows() : HideWindows();
@@ -274,6 +338,7 @@ internal static class Program
 
     static void RestoreEverything()
     {
+        try { hotkeyWatchdog?.Stop(); } catch { }
         try { if (isTabHidden) ShowTab(); } catch { }
         try { if (isHidden) ShowWindows(); } catch { }
         Native.UnregisterHotKey(form?.Handle ?? IntPtr.Zero, HOTKEY_HIDE);
@@ -288,10 +353,10 @@ internal static class Program
         var m = tray.ContextMenuStrip;
         m.Items.Clear();
         m.Items.Add(new ToolStripMenuItem(
-            isHidden ? $"显示 {cfg.TargetProcess}" : $"隐藏 {cfg.TargetProcess}",
+            (isHidden ? $"显示 {cfg.TargetProcess}" : $"隐藏 {cfg.TargetProcess}") + (hotkeyHideOk ? "" : "（热键被占用）"),
             null, (_, _) => ToggleHide()) { ShortcutKeyDisplayString = cfg.HideHotkey });
         m.Items.Add(new ToolStripMenuItem(
-            isTabHidden ? "恢复任务栏图标" : "隐藏任务栏图标（窗口保持可见）",
+            (isTabHidden ? "恢复任务栏图标" : "隐藏任务栏图标（窗口保持可见）") + (hotkeyTabOk ? "" : "（热键被占用）"),
             null, (_, _) => ToggleTab()) { ShortcutKeyDisplayString = cfg.TabHotkey });
         m.Items.Add(new ToolStripSeparator());
         m.Items.Add(new ToolStripMenuItem("开机自启", null, (_, _) => ToggleStartup())
