@@ -31,7 +31,7 @@
 
 ## 快速开始
 
-1. 到 [**Releases**](../../releases/latest) 下载 `DSH-BossKey.exe`（单文件，220 KB）
+1. 到 [**Releases**](https://github.com/T0ka1Teio/dsh-bosskey/releases/latest) 下载 `DSH-BossKey.exe`（单文件，220 KB）
 2. 放到任意文件夹就能用（**免安装**，不写系统目录）
 3. 双击 `DSH-BossKey.exe`
 4. 看屏幕右下角的**系统托盘**——出现一个蓝色圆形图标，就说明它已经在正常运行了
