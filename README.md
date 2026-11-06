@@ -12,7 +12,7 @@
   <img alt="platform" src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D4">
   <img alt="dotnet" src="https://img.shields.io/badge/.NET-10-512BD4">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-2ea44f">
-  <img alt="size" src="https://img.shields.io/badge/download-42%20MB-lightgrey">
+  <img alt="size" src="https://img.shields.io/badge/download-220%20KB-lightgrey">
 </p>
 
 ---
@@ -31,12 +31,16 @@
 
 ## 快速开始
 
-1. 到 [**Releases**](../../releases/latest) 下载最新的 `DSH-BossKey-*-win-x64.zip`
-2. 解压到任意文件夹（**不需要安装**，也不需要装 .NET，运行时已内置）
+1. 到 [**Releases**](../../releases/latest) 下载 `DSH-BossKey.exe`（单文件，220 KB）
+2. 放到任意文件夹就能用（**免安装**，不写系统目录）
 3. 双击 `DSH-BossKey.exe`
 4. 看屏幕右下角的**系统托盘**——出现一个蓝色圆形图标，就说明它已经在正常运行了
    （Windows 11 默认把托盘图标折叠起来，点一下任务栏上的 `^` 就能看到）
 5. 按 `Ctrl + Alt + Q` 试试
+
+> **运行环境**：需要 [**.NET 10 桌面运行时**](https://dotnet.microsoft.com/download/dotnet/10.0)（Windows 一般没自带）。
+> 如果双击后提示缺少 .NET 或一闪而过，就是这个原因；装上桌面运行时（Desktop Runtime）再双击即可。
+> 不想装运行时的话，可以自己构建自包含版，见下方「从源码构建」。
 
 > **第一次运行时 Windows 可能拦一下**
 > 会提示「Windows 已保护你的电脑」。这是因为程序没有购买数字签名证书，属于未签名软件的常规提示，不是报错。
@@ -69,6 +73,10 @@
 1. 托盘里还有没有那个蓝色图标？没有就是程序没在运行，重新双击打开。
 2. DeepSeek Harness 开着吗？程序只对正在运行的窗口生效。
 3. 热键是不是被别的软件占了？被占用时程序启动会弹一个提示气球，换一组键即可（见下面的「配置」）。
+
+**双击没反应 / 提示缺少 .NET？**
+装 [.NET 10 桌面运行时](https://dotnet.microsoft.com/download/dotnet/10.0)（要选 **Desktop Runtime**，不是 ASP.NET Core 那个），装完直接双击。
+注意：它是一瞬间就退出的，不会弹错误框，所以"没反应"往往就是缺运行时。
 
 **会不会把我正在跑的任务弄停？**
 不会。它只改变窗口的「可见性」，不关闭、不结束进程，后台任务照常跑。
@@ -156,15 +164,16 @@ cd dsh-bosskey
 或者手动指定：
 
 ```powershell
-# 精简版：约 220 KB，需要目标机器装 .NET 10 桌面运行时
+# 精简版：约 220 KB，需要目标机器装 .NET 10 桌面运行时（Release 里发的就是这个）
 dotnet publish -c Release -r win-x64 -p:SelfContained=false -p:PublishSingleFile=true -o dist
 
-# 自包含版：约 47 MB，内置运行时，双击即用（发布用的就是这个）
+# 自包含版：约 47 MB，内置运行时，对方什么都不用装（适合发给别人）
 dotnet publish -c Release -r win-x64 -p:SelfContained=true -p:PublishSingleFile=true `
   -p:EnableCompressionInSingleFile=true -p:DebugType=none -o dist\selfcontained
 ```
 
-推送 tag 后 GitHub Actions 会自动构建产物。
+`build.ps1` 默认构建自包含版；要精简版就加 `-SelfContained:$false`。
+每次 push 后 GitHub Actions 会在 Actions 页生成构建产物。
 
 ## 目录结构
 
